@@ -1,7 +1,7 @@
 # Incremental Data Load using Azure Synapse
 
 ## 🚀 Overview
-This project demonstrates a **step-by-step implementation of Incremental Data Load** using **Azure Synapse Analytics**. Instead of reloading the entire dataset, we use a **watermarking strategy** to load only new or updated records from **Azure SQL Database** to **Azure Data Lake Storage (ADLS)**.
+This project demonstrates a **step-by-step implementation of Incremental Data Load** using **Azure Synapse Analytics**. Instead of reloading the entire dataset, we use a **watermarking strategy** to load only new records from **Azure SQL Database** to **Azure Data Lake Storage (ADLS)**.
 
 ## 📌 Use Case
 - **Source**: Azure SQL Database  
