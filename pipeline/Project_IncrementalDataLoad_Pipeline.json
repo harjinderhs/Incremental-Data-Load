@@ -1,0 +1,220 @@
+{
+    "name": "Project_IncrementalDataLoad_Pipeline",
+    "properties": {
+        "activities": [
+            {
+                "name": "WatermarkLookup",
+                "type": "Lookup",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "source": {
+                        "type": "AzureSqlSource",
+                        "queryTimeout": "02:00:00",
+                        "partitionOption": "None"
+                    },
+                    "dataset": {
+                        "referenceName": "ds_SqlDB_Source",
+                        "type": "DatasetReference",
+                        "parameters": {
+                            "Schema_Name": "DBO",
+                            "Table_Name": "Watermark"
+                        }
+                    },
+                    "firstRowOnly": false
+                }
+            },
+            {
+                "name": "ForEach",
+                "type": "ForEach",
+                "dependsOn": [
+                    {
+                        "activity": "WatermarkLookup",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "userProperties": [],
+                "typeProperties": {
+                    "items": {
+                        "value": "@activity('WatermarkLookup').output.value",
+                        "type": "Expression"
+                    },
+                    "activities": [
+                        {
+                            "name": "GetMaxValueLookup",
+                            "type": "Lookup",
+                            "dependsOn": [],
+                            "policy": {
+                                "timeout": "0.12:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "userProperties": [],
+                            "typeProperties": {
+                                "source": {
+                                    "type": "AzureSqlSource",
+                                    "sqlReaderQuery": {
+                                        "value": "select max(@{item().DELTACOLUMN}) as maxvalue from  @{item().SCHEMANAME}.@{item().TABLENAME}",
+                                        "type": "Expression"
+                                    },
+                                    "queryTimeout": "02:00:00",
+                                    "partitionOption": "None"
+                                },
+                                "dataset": {
+                                    "referenceName": "ds_SqlDB_Source",
+                                    "type": "DatasetReference",
+                                    "parameters": {
+                                        "Schema_Name": "''",
+                                        "Table_Name": "''"
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "name": "If Condition",
+                            "type": "IfCondition",
+                            "dependsOn": [
+                                {
+                                    "activity": "GetMaxValueLookup",
+                                    "dependencyConditions": [
+                                        "Succeeded"
+                                    ]
+                                }
+                            ],
+                            "userProperties": [],
+                            "typeProperties": {
+                                "expression": {
+                                    "value": "@greater(string(activity('GetMaxValueLookup').output.firstRow.MaxValue), item().LPV)",
+                                    "type": "Expression"
+                                },
+                                "ifTrueActivities": [
+                                    {
+                                        "name": "Copy data",
+                                        "type": "Copy",
+                                        "dependsOn": [],
+                                        "policy": {
+                                            "timeout": "0.12:00:00",
+                                            "retry": 0,
+                                            "retryIntervalInSeconds": 30,
+                                            "secureOutput": false,
+                                            "secureInput": false
+                                        },
+                                        "userProperties": [],
+                                        "typeProperties": {
+                                            "source": {
+                                                "type": "AzureSqlSource",
+                                                "sqlReaderQuery": {
+                                                    "value": "SELECT * FROM @{item().TABLENAME} WHERE @{item().DELTACOLUMN}>'@{item().LPV}'",
+                                                    "type": "Expression"
+                                                },
+                                                "queryTimeout": "02:00:00",
+                                                "partitionOption": "None"
+                                            },
+                                            "sink": {
+                                                "type": "DelimitedTextSink",
+                                                "storeSettings": {
+                                                    "type": "AzureBlobFSWriteSettings"
+                                                },
+                                                "formatSettings": {
+                                                    "type": "DelimitedTextWriteSettings",
+                                                    "quoteAllText": true,
+                                                    "fileExtension": ".txt"
+                                                }
+                                            },
+                                            "enableStaging": false,
+                                            "translator": {
+                                                "type": "TabularTranslator",
+                                                "typeConversion": true,
+                                                "typeConversionSettings": {
+                                                    "allowDataTruncation": true,
+                                                    "treatBooleanAsNumber": false
+                                                }
+                                            }
+                                        },
+                                        "inputs": [
+                                            {
+                                                "referenceName": "ds_SqlDB_Source",
+                                                "type": "DatasetReference",
+                                                "parameters": {
+                                                    "Schema_Name": "''",
+                                                    "Table_Name": "''"
+                                                }
+                                            }
+                                        ],
+                                        "outputs": [
+                                            {
+                                                "referenceName": "ds_ADLS_Sink",
+                                                "type": "DatasetReference",
+                                                "parameters": {
+                                                    "Folder_Name": "@item().FOLDERNAME",
+                                                    "File_Name": "@concat(item().TABLENAME,'_', utcNow(),'.csv')"
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "name": "Watermark Update Stored procedure",
+                                        "type": "SqlServerStoredProcedure",
+                                        "dependsOn": [
+                                            {
+                                                "activity": "Copy data",
+                                                "dependencyConditions": [
+                                                    "Succeeded"
+                                                ]
+                                            }
+                                        ],
+                                        "policy": {
+                                            "timeout": "0.12:00:00",
+                                            "retry": 0,
+                                            "retryIntervalInSeconds": 30,
+                                            "secureOutput": false,
+                                            "secureInput": false
+                                        },
+                                        "userProperties": [],
+                                        "typeProperties": {
+                                            "storedProcedureName": "[dbo].[USP_WATERMARK_VALUE_UPDATE]",
+                                            "storedProcedureParameters": {
+                                                "LPV": {
+                                                    "value": {
+                                                        "value": "@activity('GetMaxValueLookUp').output.firstRow.maxvalue",
+                                                        "type": "Expression"
+                                                    },
+                                                    "type": "String"
+                                                },
+                                                "TABLE_NAME": {
+                                                    "value": {
+                                                        "value": "@item().TABLENAME",
+                                                        "type": "Expression"
+                                                    },
+                                                    "type": "String"
+                                                }
+                                            }
+                                        },
+                                        "linkedServiceName": {
+                                            "referenceName": "ls_SqlDB_connection",
+                                            "type": "LinkedServiceReference"
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        ],
+        "annotations": [],
+        "lastPublishTime": "2025-03-06T07:49:02Z"
+    },
+    "type": "Microsoft.Synapse/workspaces/pipelines"
+}

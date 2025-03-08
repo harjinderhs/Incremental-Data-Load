@@ -1,0 +1,6 @@
+selected resource name:		Project_IncrementalDataLoad_Pipeline
+selected resource type:		pipeline
+workspace name:			wsp-ncpl-singhh
+workspace location:		australiaeast
+subscription id:		91a74185-4d48-411e-bc73-bb2295b0a30c
+time of download (UTC):		Sat, 08 Mar 2025 13:43:06 GMT

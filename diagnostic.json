@@ -1,0 +1,23 @@
+{
+    "now": "2025-03-08T13:43:06.514Z",
+    "perfNow": 1069720.400000006,
+    "diagnosticCorrelation": "83377331-49e5-4721-93c1-a565f7cb47db",
+    "source": "DownloadSupportFiles",
+    "environment": {
+        "productName": "a365",
+        "buildVersion": "25.0227.03",
+        "environmentType": 9,
+        "resourceName": "wsp-ncpl-singhh",
+        "resourceRegion": "australiaeast",
+        "resourceGroup": "rg-ncpl-hsingh",
+        "subscriptionId": "91a74185-4d48-411e-bc73-bb2295b0a30c",
+        "sessionId": "0Q7589kHNDttbIRf1ZP+Lx",
+        "operationId": "fjrEI",
+        "gitType": "live",
+        "loggingKey": "c6750102-e1f6-43c0-b211-bbcf22744f9d"
+    },
+    "additionalInfo": {
+        "selectedResource": "Project_IncrementalDataLoad_Pipeline",
+        "selectedResourceType": "pipeline"
+    }
+}
